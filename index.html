@@ -2895,840 +2895,1094 @@
         </div>
     </footer>
 
-    <script>
-        // ===== CONFIGURATION =====
-        const API_BASE_URL = 'https://snazo-backend.onrender.com/api';
-        const ADMIN_CREDENTIALS = { name: 'Admin', email: 'admin@snazo.com', password: 'admin123', isAdmin: true };
+ <script>
+    // ===== CONFIGURATION =====
+    // IMPORTANT: Ensure this is the CORRECT URL for your deployed backend API.
+    // Example: 'https://your-snazo-backend.onrender.com/api'
+    const API_BASE_URL = 'https://snazo-backend.onrender.com/api'; 
+    const ADMIN_CREDENTIALS = { name: 'Admin', email: 'admin@snazo.com', password: 'admin123', isAdmin: true };
 
-        // ===== STATE MANAGEMENT =====
-        let users = new Map(JSON.parse(localStorage.getItem('users')) || [[ADMIN_CREDENTIALS.email, ADMIN_CREDENTIALS]]);
-        let currentUser = JSON.parse(localStorage.getItem('currentUser')) || null;
-        let cart = new Map(JSON.parse(localStorage.getItem('cart')) || []);
-        let orders = JSON.parse(localStorage.getItem('orders')) || [];
-        let voucherApplied = false;
+    // ===== STATE MANAGEMENT =====
+    let users = new Map(JSON.parse(localStorage.getItem('users')) || [[ADMIN_CREDENTIALS.email, ADMIN_CREDENTIALS]]);
+    let currentUser = JSON.parse(localStorage.getItem('currentUser')) || null;
+    let cart = new Map(JSON.parse(localStorage.getItem('cart')) || []);
+    let orders = JSON.parse(localStorage.getItem('orders')) || [];
+    let voucherApplied = false;
 
-        let products = {
-            1: { id: 1, name: "Chicken Samosa", des: "Golden triangles bursting with spiced minced chicken and crispy crunch.", price: 446, originalPrice: 520, image: "https://i.pinimg.com/736x/44/06/97/440697c5fbae4617192c2f96b34799f9.jpg", discount: true },
-            2: { id: 2, name: "Chicken Cheese Samosa", des: "Juicy chicken meets molten cheddar in every flaky bite", price: 535, originalPrice: 600, image: "https://i.pinimg.com/736x/af/8a/ba/af8aba63b95d69e8d6750e7a4b901714.jpg", discount: true },
-            3: { id: 3, name: "Chicken Kanthari Cutlet", des: "Fiery green chili heat hugs tender chicken in a crisp shell.", price: 446, image: "https://i.pinimg.com/736x/dd/8a/ca/dd8aca65e4841e33dd58d721d5753437.jpg" },
-            4: { id: 4, name: "Chicken Cutlet", price: 407, des: "Classic spiced chicken patty, fried to juicy, golden perfection.", image: "https://i.pinimg.com/736x/38/61/8d/38618d806558124a21c40b9d368c551a.jpg" },
-            5: { id: 5, name: "Chicken Spring Roll", des: "Flaky rolls packed with savory chicken and veggie snap.", price: 485, image: "https://i.pinimg.com/1200x/60/42/49/604249c513b50ade35a405c272fd5c44.jpg", popular: true },
-            6: { id: 6, name: "Banana Cutlet", des: "Caramelized banana slices, crisp outside, tender within.", price: 90, image: "https://i.pinimg.com/736x/3f/49/94/3f499422f1795c9169e6bcadf0d20b96.jpg" },
-            7: { id: 7, name: "Chicken Creamy Box", des: "Creamy chicken delight sealed in a buttery, crispy parcel.", price: 892, image: "https://i.pinimg.com/1200x/59/a3/44/59a34480478859fe841e83df071c8913.jpg" },
-            8: { id: 8, name: "Shrimp Twist", price: 257, des: "Plump shrimp tails twisted in tangy, crispy curls.", image: "https://i.pinimg.com/736x/ea/7f/b3/ea7fb3c7c24b2a6513cb54b9ff5aaf0c.jpg" },
-            9: { id: 9, name: "Meat Cutlet", price: 194, des: "Robust minced meat, spiced and fried to hearty crunch.", image: "https://i.pinimg.com/736x/34/b7/d6/34b7d694bca4cc47725ecc7233a86c92.jpg" },
-            10: { id: 10, name: "Veg Samosa", price: 155, des: "Earthy potato-pea magic in a spiced, golden triangle.", image: "https://i.pinimg.com/736x/bb/95/aa/bb95aa98217422d7b5d0a3a8c6ec0c68.jpg" },
-            11: { id: 11, name: "Unnakai", price: 82, des: "Sweet coconut wrapped in soft banana, a tropical melt-in-mouth treat.", image: "https://i.pinimg.com/1200x/33/ca/c4/33cac4202620b47428434524d31703b8.jpg" },
-            12: { id: 12, name: "Crispy Sweet Balls", price: 90, des: "Golden sugar-glazed orbs that pop with sweet crunch.", image: "https://i.pinimg.com/1200x/1e/3c/33/1e3c33e4a91256d536ad4f0aad6f5b13.jpg" },
-            13: { id: 13, name: "Meat Samosa", price: 97, des: "Bold spiced meat stuffed in flaky, deep-fried pastry bliss.", image: "https://i.pinimg.com/1200x/a9/01/60/a901606e69aa6c387ce9c3929c482b76.jpg" }
+    // The 'products' object will now be populated directly from the backend
+    let products = {}; 
+
+    // ===== INITIALIZATION =====
+    document.addEventListener('DOMContentLoaded', async () => { // Added 'async' here
+        const token = localStorage.getItem('authToken');
+        if (token && currentUser) {
+            updateUserUI();
+        }
+        
+        await loadProducts(); // Ensure products are loaded before rendering
+        updateCart();
+        setupScrollReveal();
+        initializeEventListeners();
+    });
+
+    // ===== API CALLS =====
+    async function apiCall(endpoint, options = {}) {
+        console.log('🟦 API CALL:', endpoint); // Debugging
+        console.log('📤 Request Options:', options); // Debugging
+
+        const token = localStorage.getItem('authToken');
+        const headers = {
+            'Content-Type': 'application/json',
+            ...(token && { 'Authorization': `Bearer ${token}` }),
+            ...options.headers
         };
 
-        // ===== INITIALIZATION =====
-        document.addEventListener('DOMContentLoaded', () => {
-            const token = localStorage.getItem('authToken');
-            if (token && currentUser) {
-                updateUserUI();
+        try {
+            const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+                ...options,
+                headers
+            });
+            
+            const data = await response.json(); // Always try to parse JSON
+            console.log('🟢 Response Data:', data); // Debugging
+
+            if (!response.ok) {
+                // If backend sends an error message in 'error' or 'message' property
+                throw new Error(data.error || data.message || `HTTP error! Status: ${response.status}`);
             }
             
-            loadProducts();
-            updateCart();
-            setupScrollReveal();
-            initializeEventListeners();
+            return data;
+        } catch (error) {
+            console.error('🔴 API Error:', error.message);
+            throw error;
+        }
+    }
+
+    async function loadProducts() {
+        try {
+            const data = await apiCall('/products');
+            if (data.products && Array.isArray(data.products)) {
+                // Clear existing products and repopulate from backend
+                products = {}; 
+                data.products.forEach(product => {
+                    // Ensure backend product properties match frontend expectations
+                    products[product._id || product.id] = { // Use _id if backend uses MongoDB ID, otherwise 'id'
+                        id: product._id || product.id,
+                        name: product.name,
+                        des: product.description, // Assuming backend uses 'description'
+                        price: product.price,
+                        originalPrice: product.originalPrice,
+                        image: product.image,
+                        discount: product.discount,
+                        popular: product.popular
+                    };
+                });
+                console.log('✅ Products loaded from backend');
+            } else {
+                console.warn('⚠️ Backend did not return a "products" array. Using fallback products.');
+                // Fallback to hardcoded products if backend fails or returns wrong format
+                products = {
+                    1: { id: "1", name: "Chicken Samosa", des: "Golden triangles bursting with spiced minced chicken and crispy crunch.", price: 446, originalPrice: 520, image: "https://i.pinimg.com/736x/44/06/97/440697c5fbae4617192c2f96b34799f9.jpg", discount: true },
+                    2: { id: "2", name: "Chicken Cheese Samosa", des: "Juicy chicken meets molten cheddar in every flaky bite", price: 535, originalPrice: 600, image: "https://i.pinimg.com/736x/af/8a/ba/af8aba63b95d69e8d6750e7a4b901714.jpg", discount: true },
+                    3: { id: "3", name: "Chicken Kanthari Cutlet", des: "Fiery green chili heat hugs tender chicken in a crisp shell.", price: 446, image: "https://i.pinimg.com/736x/dd/8a/ca/dd8aca65e4841e33dd58d721d5753437.jpg" },
+                    4: { id: "4", name: "Chicken Cutlet", price: 407, des: "Classic spiced chicken patty, fried to juicy, golden perfection.", image: "https://i.pinimg.com/736x/38/61/8d/38618d806558124a21c40b9d368c551a.jpg" },
+                    5: { id: "5", name: "Chicken Spring Roll", des: "Flaky rolls packed with savory chicken and veggie snap.", price: 485, image: "https://i.pinimg.com/1200x/60/42/49/604249c513b50ade35a405c272fd5c44.jpg", popular: true },
+                    6: { id: "6", name: "Banana Cutlet", des: "Caramelized banana slices, crisp outside, tender within.", price: 90, image: "https://i.pinimg.com/736x/3f/49/94/3f499422f1795c9169e6bcadf0d20b96.jpg" },
+                    7: { id: "7", name: "Chicken Creamy Box", des: "Creamy chicken delight sealed in a buttery, crispy parcel.", price: 892, image: "https://i.pinimg.com/1200x/59/a3/44/59a34480478859fe841e83df071c8913.jpg" },
+                    8: { id: "8", name: "Shrimp Twist", price: 257, des: "Plump shrimp tails twisted in tangy, crispy curls.", image: "https://i.pinimg.com/736x/ea/7f/b3/ea7fb3c7c24b2a6513cb54b9ff5aaf0c.jpg" },
+                    9: { id: "9", name: "Meat Cutlet", price: 194, des: "Robust minced meat, spiced and fried to hearty crunch.", image: "https://i.pinimg.com/736x/34/b7/d6/34b7d694bca4cc47725ecc7233a86c92.jpg" },
+                    10: { id: "10", name: "Veg Samosa", price: 155, des: "Earthy potato-pea magic in a spiced, golden triangle.", image: "https://i.pinimg.com/736x/bb/95/aa/bb95aa98217422d7b5d0a3a8c6ec0c68.jpg" },
+                    11: { id: "11", name: "Unnakai", price: 82, des: "Sweet coconut wrapped in soft banana, a tropical melt-in-mouth treat.", image: "https://i.pinimg.com/1200x/33/ca/c4/33cac4202620b47428434524d31703b8.jpg" },
+                    12: { id: "12", name: "Crispy Sweet Balls", price: 90, des: "Golden sugar-glazed orbs that pop with sweet crunch.", image: "https://i.pinimg.com/1200x/1e/3c/33/1e3c33e4a91256d536ad4f0aad6f5b13.jpg" },
+                    13: { id: "13", name: "Meat Samosa", price: 97, des: "Bold spiced meat stuffed in flaky, deep-fried pastry bliss.", image: "https://i.pinimg.com/1200x/a9/01/60/a901606e69aa6c387ce9c3929c482b76.jpg" }
+                };
+            }
+            renderProducts();
+        } catch (error) {
+            console.error('⚠️ Failed to load products from backend:', error.message);
+            // Fallback to hardcoded products if backend is completely unreachable
+            products = {
+                1: { id: "1", name: "Chicken Samosa", des: "Golden triangles bursting with spiced minced chicken and crispy crunch.", price: 446, originalPrice: 520, image: "https://i.pinimg.com/736x/44/06/97/440697c5fbae4617192c2f96b34799f9.jpg", discount: true },
+                2: { id: "2", name: "Chicken Cheese Samosa", des: "Juicy chicken meets molten cheddar in every flaky bite", price: 535, originalPrice: 600, image: "https://i.pinimg.com/736x/af/8a/ba/af8aba63b95d69e8d6750e7a4b901714.jpg", discount: true },
+                3: { id: "3", name: "Chicken Kanthari Cutlet", des: "Fiery green chili heat hugs tender chicken in a crisp shell.", price: 446, image: "https://i.pinimg.com/736x/dd/8a/ca/dd8aca65e4841e33dd58d721d5753437.jpg" },
+                4: { id: "4", name: "Chicken Cutlet", price: 407, des: "Classic spiced chicken patty, fried to juicy, golden perfection.", image: "https://i.pinimg.com/736x/38/61/8d/38618d806558124a21c40b9d368c551a.jpg" },
+                5: { id: "5", name: "Chicken Spring Roll", des: "Flaky rolls packed with savory chicken and veggie snap.", price: 485, image: "https://i.pinimg.com/1200x/60/42/49/604249c513b50ade35a405c272fd5c44.jpg", popular: true },
+                6: { id: "6", name: "Banana Cutlet", des: "Caramelized banana slices, crisp outside, tender within.", price: 90, image: "https://i.pinimg.com/736x/3f/49/94/3f499422f1795c9169e6bcadf0d20b96.jpg" },
+                7: { id: "7", name: "Chicken Creamy Box", des: "Creamy chicken delight sealed in a buttery, crispy parcel.", price: 892, image: "https://i.pinimg.com/1200x/59/a3/44/59a34480478859fe841e83df071c8913.jpg" },
+                8: { id: "8", name: "Shrimp Twist", price: 257, des: "Plump shrimp tails twisted in tangy, crispy curls.", image: "https://i.pinimg.com/736x/ea/7f/b3/ea7fb3c7c24b2a6513cb54b9ff5aaf0c.jpg" },
+                9: { id: "9", name: "Meat Cutlet", price: 194, des: "Robust minced meat, spiced and fried to hearty crunch.", image: "https://i.pinimg.com/736x/34/b7/d6/34b7d694bca4cc47725ecc7233a86c92.jpg" },
+                10: { id: "10", name: "Veg Samosa", price: 155, des: "Earthy potato-pea magic in a spiced, golden triangle.", image: "https://i.pinimg.com/736x/bb/95/aa/bb95aa98217422d7b5d0a3a8c6ec0c68.jpg" },
+                11: { id: "11", name: "Unnakai", price: 82, des: "Sweet coconut wrapped in soft banana, a tropical melt-in-mouth treat.", image: "https://i.pinimg.com/1200x/33/ca/c4/33cac4202620b47428434524d31703b8.jpg" },
+                12: { id: "12", name: "Crispy Sweet Balls", price: 90, des: "Golden sugar-glazed orbs that pop with sweet crunch.", image: "https://i.pinimg.com/1200x/1e/3c/33/1e3c33e4a91256d536ad4f0aad6f5b13.jpg" },
+                13: { id: "13", name: "Meat Samosa", price: 97, des: "Bold spiced meat stuffed in flaky, deep-fried pastry bliss.", image: "https://i.pinimg.com/1200x/a9/01/60/a901606e69aa6c387ce9c3929c482b76.jpg" }
+            };
+            showNotification(`Failed to load products. Using local data. Error: ${error.message}`, 'error');
+            renderProducts();
+        }
+    }
+
+    // ===== STORAGE FUNCTIONS =====
+    function saveState() {
+        localStorage.setItem('currentUser', JSON.stringify(currentUser));
+        localStorage.setItem('cart', JSON.stringify(Array.from(cart.entries())));
+        localStorage.setItem('orders', JSON.stringify(orders)); // Assuming orders are stored locally for now
+        localStorage.setItem('users', JSON.stringify(Array.from(users.entries()))); // For fallback local user auth
+    }
+
+    // ===== UI FUNCTIONS =====
+    function showNotification(message, type = 'success', duration = 3000) {
+        const notification = document.createElement('div');
+        notification.className = `notification ${type}`;
+        notification.innerHTML = `${message}`;
+        document.body.appendChild(notification);
+
+        setTimeout(() => {
+            notification.style.animation = 'slideOutRight 0.5s ease forwards';
+            notification.addEventListener('animationend', () => notification.remove());
+        }, duration);
+    }
+
+    function renderProducts() {
+        const featured = document.getElementById('featuredProducts');
+        const all = document.getElementById('allProducts');
+        
+        const productHTML = Object.values(products).map(product => `
+            <div class="product-card">
+                <div class="product-img-wrapper">
+                    <img src="${product.image}" alt="${product.name}">
+                    ${product.discount ? '<div class="product-discount">20% OFF</div>' : ''}
+                    ${product.popular ? '<div class="product-badge">Popular</div>' : ''}
+                    <button class="wishlist-btn" type="button">♡</button>
+                </div>
+                <div class="product-info">
+                    <h3 class="product-name">${product.name}</h3>
+                    <div class="product-rating">
+                        <div class="stars">⭐⭐⭐⭐⭐</div>
+                        <span class="rating-text">(2.8k)</span>
+                    </div>
+                    <p class="product-desc">400g Pack<br><span class="product-descrip">${product.des}</span></p>
+                    <div class="product-footer">
+                        <div class="product-price">
+                            ${product.originalPrice ? `<span class="price-original">₹${product.originalPrice}</span>` : ''}
+                            <span class="price-current">₹${product.price}</span>
+                        </div>
+                        <button class="add-cart-btn" onclick="addToCart('${product.id}')">Add</button>
+                    </div>
+                </div>
+            </div>
+        `).join('');
+        
+        if (featured) featured.innerHTML = productHTML;
+        if (all) all.innerHTML = productHTML;
+    }
+
+    function showSection(id) {
+        document.querySelectorAll('.page-section').forEach(s => s.classList.remove('active'));
+        const section = document.getElementById(id);
+        if (section) {
+            section.classList.add('active');
+        }
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function scrollToElement(id) {
+        const element = document.getElementById(id);
+        if (element) {
+            element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    }
+
+    function togglePassword(id) {
+        const input = document.getElementById(id);
+        if (input) {
+            input.type = input.type === 'password' ? 'text' : 'password';
+        }
+    }
+
+    function setupScrollReveal() {
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('visible');
+                }
+            });
+        }, { threshold: 0.1 });
+
+        document.querySelectorAll('.scroll-reveal').forEach(el => observer.observe(el));
+    }
+
+    function initializeEventListeners() {
+        // Instruction tabs
+        document.querySelectorAll('.instruction-tab').forEach(tab => {
+            tab.addEventListener('click', function() {
+                const category = this.getAttribute('data-category');
+                document.querySelectorAll('.instruction-tab').forEach(t => t.classList.remove('active'));
+                document.querySelectorAll('.instruction-content').forEach(c => c.classList.remove('active'));
+                this.classList.add('active');
+                const element = document.getElementById(category);
+                if (element) element.classList.add('active');
+            });
         });
 
-        // ===== API CALLS =====
-        async function apiCall(endpoint, options = {}) {
-            const token = localStorage.getItem('authToken');
-            const headers = {
-                'Content-Type': 'application/json',
-                ...(token && { 'Authorization': `Bearer ${token}` }),
-                ...options.headers
-            };
+        // Legal tabs
+        document.querySelectorAll('.legal-tab').forEach(tab => {
+            tab.addEventListener('click', function() {
+                const category = this.getAttribute('data-category');
+                document.querySelectorAll('.legal-tab').forEach(t => t.classList.remove('active'));
+                document.querySelectorAll('.legal-content').forEach(c => c.classList.remove('active'));
+                this.classList.add('active');
+                const element = document.getElementById(category);
+                if (element) element.classList.add('active');
+            });
+        });
 
-            try {
-                const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-                    ...options,
-                    headers
+        // FAQ items
+        document.querySelectorAll('.faq-item').forEach(item => {
+            const question = item.querySelector('.faq-question');
+            if (question) {
+                question.addEventListener('click', () => {
+                    const isActive = item.classList.contains('active');
+                    document.querySelectorAll('.faq-item').forEach(faq => faq.classList.remove('active'));
+                    if (!isActive) item.classList.add('active');
                 });
-                
-                if (!response.ok) {
-                    const error = await response.json();
-                    throw new Error(error.error || `HTTP ${response.status}`);
+            }
+        });
+
+        // Wishlist buttons
+        document.addEventListener('click', (e) => {
+            if (e.target.classList.contains('wishlist-btn')) {
+                e.target.textContent = e.target.textContent === '♡' ? '❤️' : '♡';
+                if (e.target.textContent === '❤️') {
+                    showNotification('Added to wishlist! ❤️', 'success');
                 }
-                
-                return await response.json();
-            } catch (error) {
-                console.error('API Error:', error.message);
-                throw error;
+            }
+        });
+
+        // Header scroll
+        window.addEventListener('scroll', () => {
+            const header = document.getElementById('header');
+            if (window.scrollY > 50) {
+                header.classList.add('scrolled');
+            } else {
+                header.classList.remove('scrolled');
+            }
+        });
+
+        // Close on escape
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                closeCart();
+                closeAuthModal();
+                closeDashboard();
+            }
+        });
+
+        // Modal close on background click
+        document.getElementById('authModal').addEventListener('click', (e) => {
+            if (e.target.id === 'authModal') {
+                closeAuthModal();
+            }
+        });
+    }
+
+    // ===== AUTH FUNCTIONS =====
+    function openAuthModal() {
+        document.getElementById('authModal').classList.add('active');
+    }
+
+    function closeAuthModal() {
+        document.getElementById('authModal').classList.remove('active');
+    }
+
+    function switchAuthTab(tab) {
+        document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+        document.querySelectorAll('.panel').forEach(panel => panel.classList.remove('active'));
+
+        document.querySelector(`.tab-btn:nth-child(${tab === 'login' ? 1 : 2})`).classList.add('active');
+        document.getElementById(tab + 'Panel').classList.add('active');
+    }
+
+    async function handleLogin(e) {
+        e.preventDefault();
+        const email = document.getElementById('loginEmail').value;
+        const password = document.getElementById('loginPass').value;
+
+        try {
+            const data = await apiCall('/auth/login', {
+                method: 'POST',
+                body: JSON.stringify({ email, password })
+            });
+
+            localStorage.setItem('authToken', data.token);
+            // Assuming backend returns user object with 'name', 'email', and 'isAdmin' property
+            currentUser = data.user; 
+            saveState();
+            updateUserUI();
+            closeAuthModal();
+            showNotification(`Welcome back, ${data.user.name}! 👋`, 'success');
+        } catch (error) {
+            // Fallback for local admin login if backend fails or doesn't exist
+            const user = users.get(email);
+            if (user && user.password === password) {
+                currentUser = { name: user.name, email: user.email, isAdmin: user.isAdmin };
+                saveState();
+                updateUserUI();
+                closeAuthModal();
+                showNotification(`Welcome back, ${user.name}! 👋`, 'success');
+            } else {
+                showNotification('Invalid credentials. Try admin@snazo.com / admin123', 'error');
             }
         }
+    }
 
-        async function loadProducts() {
-            try {
-                const data = await apiCall('/products');
-                if (data.products && Array.isArray(data.products)) {
-                    data.products.forEach(product => {
-                        products[product.id] = {
-                            id: product.id,
-                            name: product.name,
-                            des: product.description,
-                            price: product.price,
-                            originalPrice: product.originalPrice,
-                            image: product.image,
-                            discount: product.discount,
-                            popular: product.popular
-                        };
-                    });
-                    console.log('✅ Products loaded from backend');
-                }
-                renderProducts();
-            } catch (error) {
-                console.warn('⚠️ Using fallback products:', error.message);
-                renderProducts();
+    async function handleSignup(e) {
+        e.preventDefault();
+        const name = document.getElementById('signupName').value;
+        const email = document.getElementById('signupEmail').value;
+        const password = document.getElementById('signupPass').value;
+
+        try {
+            const data = await apiCall('/auth/register', {
+                method: 'POST',
+                body: JSON.stringify({ name, email, password })
+            });
+
+            localStorage.setItem('authToken', data.token);
+            // Assuming backend returns user object with 'name', 'email', and 'isAdmin' property
+            currentUser = data.user; 
+            saveState();
+            updateUserUI();
+            closeAuthModal();
+            showNotification('Account created successfully! 🎉', 'success');
+        } catch (error) {
+            // Fallback for local user registration if backend fails or doesn't exist
+            if (users.has(email)) {
+                showNotification('Account with this email already exists! ⚠️', 'error');
+                return;
+            }
+
+            const newUser = { name, email, password, isAdmin: false };
+            users.set(email, newUser);
+            currentUser = { name: newUser.name, email: newUser.email, isAdmin: newUser.isAdmin };
+            saveState();
+            updateUserUI();
+            closeAuthModal();
+            showNotification('Account created successfully! 🎉', 'success');
+        }
+    }
+
+    function logout() {
+        currentUser = null;
+        localStorage.removeItem('authToken');
+        saveState();
+        updateUserUI();
+        closeDashboard();
+        closeCart();
+        showNotification('Logged out successfully! 👋', 'success');
+    }
+
+    function updateUserUI() {
+        const userInfo = document.getElementById('userInfo');
+        const loginBtn = document.getElementById('loginBtn');
+
+        if (currentUser) {
+            const initial = currentUser.name ? currentUser.name.charAt(0).toUpperCase() : 'U';
+            document.getElementById('userAvatar').textContent = initial;
+            document.getElementById('userName').textContent = currentUser.name || 'User';
+            userInfo.classList.add('active');
+            loginBtn.style.display = 'none';
+        } else {
+            userInfo.classList.remove('active');
+            loginBtn.style.display = 'block';
+        }
+        updateCart();
+    }
+
+    // ===== CART FUNCTIONS =====
+    function openCart() {
+        document.getElementById('cartSidebar').classList.add('active');
+        document.getElementById('cartView').style.display = 'flex';
+        document.getElementById('checkoutForm').classList.remove('active');
+    }
+
+    function closeCart() {
+        document.getElementById('cartSidebar').classList.remove('active');
+    }
+
+    function addToCart(id) {
+        const product = products[id];
+        const key = String(id);
+        
+        if (!product) {
+            showNotification('Product not found!', 'error');
+            return;
+        }
+
+        if (cart.has(key)) {
+            cart.get(key).qty++;
+        } else {
+            cart.set(key, { ...product, qty: 1, id: key });
+        }
+        
+        updateCart();
+        showNotification(`${product.name} added! 🎉`, 'success');
+        saveState();
+    }
+
+    function updateQuantity(id, change) {
+        const key = String(id);
+        if (cart.has(key)) {
+            const item = cart.get(key);
+            item.qty += change;
+            if (item.qty <= 0) {
+                const name = item.name;
+                cart.delete(key);
+                showNotification(`${name} removed from cart.`, 'error');
+            } else {
+                cart.set(key, item);
             }
         }
+        updateCart();
+        saveState();
+    }
 
-        // ===== STORAGE FUNCTIONS =====
-        function saveState() {
-            localStorage.setItem('currentUser', JSON.stringify(currentUser));
-            localStorage.setItem('cart', JSON.stringify(Array.from(cart.entries())));
-            localStorage.setItem('orders', JSON.stringify(orders));
-            localStorage.setItem('users', JSON.stringify(Array.from(users.entries())));
+    function removeFromCart(id) {
+        const key = String(id);
+        if (cart.has(key)) {
+            const name = cart.get(key).name;
+            cart.delete(key);
+            updateCart();
+            showNotification(`${name} removed from cart.`, 'error');
+            saveState();
+        }
+    }
+
+    function updateCart() {
+        const count = Array.from(cart.values()).reduce((sum, item) => sum + item.qty, 0);
+        document.getElementById('cartCount').textContent = count;
+        renderCart();
+    }
+
+    function renderCart() {
+        const wrapper = document.getElementById('cartItems');
+        const footer = document.getElementById('cartFooter');
+        let subtotal = 0;
+
+        if (cart.size === 0) {
+            wrapper.innerHTML = `
+                <div style="text-align: center; padding: 4rem 2rem; color: rgba(255,255,255,0.5); width: 100%;">
+                    <div style="font-size: 4rem; margin-bottom: 1.5rem;">🧺</div>
+                    <h3 style="margin-bottom: 0.75rem; color: white;">Your cart is empty</h3>
+                    <p>Add delicious items to get started!</p>
+                    <button class="btn btn-primary" style="margin-top: 2rem; width: auto;" onclick="showSection('products'); closeCart();">
+                        <span>Browse Menu</span>
+                    </button>
+                </div>
+            `;
+            footer.style.display = 'none';
+            return;
         }
 
-        // ===== UI FUNCTIONS =====
-        function showNotification(message, type = 'success', duration = 3000) {
-            const notification = document.createElement('div');
-            notification.className = `notification ${type}`;
-            notification.innerHTML = `${message}`;
-            document.body.appendChild(notification);
-
-            setTimeout(() => {
-                notification.style.animation = 'slideOutRight 0.5s ease forwards';
-                notification.addEventListener('animationend', () => notification.remove());
-            }, duration);
-        }
-
-        function renderProducts() {
-            const featured = document.getElementById('featuredProducts');
-            const all = document.getElementById('allProducts');
-            
-            const productHTML = Object.entries(products).map(([id, product]) => `
-                <div class="product-card">
-                    <div class="product-img-wrapper">
-                        <img src="${product.image}" alt="${product.name}">
-                        ${product.discount ? '<div class="product-discount">20% OFF</div>' : ''}
-                        ${product.popular ? '<div class="product-badge">Popular</div>' : ''}
-                        <button class="wishlist-btn" type="button">♡</button>
-                    </div>
-                    <div class="product-info">
-                        <h3 class="product-name">${product.name}</h3>
-                        <div class="product-rating">
-                            <div class="stars">⭐⭐⭐⭐⭐</div>
-                            <span class="rating-text">(2.8k)</span>
-                        </div>
-                        <p class="product-desc">400g Pack<br><span class="product-descrip">${product.des}</span></p>
-                        <div class="product-footer">
-                            <div class="product-price">
-                                ${product.originalPrice ? `<span class="price-original">₹${product.originalPrice}</span>` : ''}
-                                <span class="price-current">₹${product.price}</span>
+        let html = '';
+        cart.forEach((item) => {
+            const itemTotal = item.price * item.qty;
+            subtotal += itemTotal;
+            html += `
+                <div class="cart-item">
+                    <img src="${item.image}" alt="${item.name}" class="cart-item-img">
+                    <div class="cart-item-info">
+                        <h4>${item.name}</h4>
+                        <p>₹${item.price} x ${item.qty}</p>
+                        <div class="cart-item-controls">
+                            <div class="quantity-controls">
+                                <button type="button" class="quantity-btn" onclick="updateQuantity('${item.id}', -1)">-</button>
+                                <span class="item-qty">${item.qty}</span>
+                                <button type="button" class="quantity-btn" onclick="updateQuantity('${item.id}', 1)">+</button>
                             </div>
-                            <button class="add-cart-btn" onclick="addToCart('${id}')">Add</button>
+                            <button type="button" class="remove-btn" onclick="removeFromCart('${item.id}')">Remove</button>
                         </div>
                     </div>
                 </div>
-            `).join('');
-            
-            if (featured) featured.innerHTML = productHTML;
-            if (all) all.innerHTML = productHTML;
+            `;
+        });
+
+        wrapper.innerHTML = html;
+        footer.style.display = 'block';
+        document.getElementById('cartSubtotal').textContent = `₹${subtotal}`;
+        document.getElementById('cartTotal').textContent = `₹${subtotal}`;
+    }
+
+    // ===== CHECKOUT FUNCTIONS =====
+    function toggleCheckout() {
+        if (cart.size === 0) {
+            showNotification('Your cart is empty! Add items first.', 'error');
+            return;
         }
 
-        function showSection(id) {
-            document.querySelectorAll('.page-section').forEach(s => s.classList.remove('active'));
-            const section = document.getElementById(id);
-            if (section) {
-                section.classList.add('active');
-            }
-            window.scrollTo({ top: 0, behavior: 'smooth' });
+        if (!currentUser) {
+            showNotification('Please login to checkout 🔐', 'error');
+            openAuthModal();
+            return;
+        }
+                    
+        const cartView = document.getElementById('cartView');
+        const checkoutForm = document.getElementById('checkoutForm');
+
+        if (currentUser.name) document.getElementById('deliveryName').value = currentUser.name;
+
+        if (checkoutForm.classList.contains('active')) {
+            cartView.style.display = 'flex';
+            checkoutForm.classList.remove('active');
+        } else {
+            cartView.style.display = 'none';
+            checkoutForm.classList.add('active');
+            updateCheckoutSummary();
+        }
+    }
+
+    function updateCheckoutSummary() {
+        let subtotal = 0;
+        let itemsHtml = '';
+        
+        cart.forEach((item) => {
+            subtotal += item.price * item.qty;
+            itemsHtml += `
+                <div class="checkout-item">
+                    <span>${item.name} x ${item.qty}</span>
+                    <span>₹${item.price * item.qty}</span>
+                </div>
+            `;
+        });
+
+        const checkoutItemsList = document.getElementById('checkoutItemsList');
+        if (checkoutItemsList) checkoutItemsList.innerHTML = itemsHtml;
+        
+        const checkoutSubtotal = document.getElementById('checkoutSubtotal');
+        if (checkoutSubtotal) checkoutSubtotal.textContent = `₹${subtotal}`;
+        
+        let total = subtotal;
+        if (voucherApplied) {
+            const discount = Math.round(subtotal * 0.2);
+            const discountRow = document.getElementById('discountRow');
+            const discountAmount = document.getElementById('discountAmount');
+            if (discountRow) discountRow.style.display = 'flex';
+            if (discountAmount) discountAmount.textContent = `-₹${discount}`;
+            total -= discount;
+        } else {
+            const discountRow = document.getElementById('discountRow');
+            if (discountRow) discountRow.style.display = 'none';
+        }
+        
+        const checkoutTotal = document.getElementById('checkoutTotal');
+        if (checkoutTotal) checkoutTotal.textContent = `₹${total}`;
+    }
+
+    function applyVoucher() {
+        const voucherInput = document.getElementById('voucherCode');
+        const voucher = voucherInput ? voucherInput.value.toUpperCase() : '';
+        
+        if (voucher === 'SNZO20') {
+            voucherApplied = true;
+            updateCheckoutSummary();
+            showNotification('Voucher applied! 20% discount 🎉', 'success');
+        } else if (voucher === '') {
+            showNotification('Please enter a voucher code', 'error');
+        } else {
+            showNotification('Invalid voucher code ❌', 'error');
+        }
+    }
+
+    function checkPincodeAvailability() {
+        const pincodeInput = document.getElementById('pincodeInput');
+        const statusEl = document.getElementById('pincodeStatus');
+        const pincode = pincodeInput ? pincodeInput.value.trim() : '';
+
+        if (!pincode || pincode.length !== 6 || !/^\d+$/.test(pincode)) {
+            if (statusEl) statusEl.innerHTML = '<span style="color: #FF6B35;">⚠️ Please enter a valid 6-digit pincode</span>';
+            return;
         }
 
-        function scrollToElement(id) {
-            const element = document.getElementById(id);
-            if (element) {
-                element.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            }
+        const serviceablePincodes = [
+            '682001', '682002', '682003', '682004', '682005',
+            '682016', '682017', '682018', '682019', '682020',
+            '673001', '673002', '673003', '673004', '673005'
+        ];
+
+        if (serviceablePincodes.includes(pincode)) {
+            if (statusEl) statusEl.innerHTML = '<span style="color: var(--success);">✅ Delivery available!</span>';
+        } else {
+            if (statusEl) statusEl.innerHTML = '<span style="color: #FF3B3F;">❌ Delivery not available at this pincode</span>';
+        }
+    }
+
+    async function proceedToPayment() {
+        const name = document.getElementById('deliveryName')?.value || '';
+        const phone = document.getElementById('deliveryPhone')?.value || '';
+        const address = document.getElementById('deliveryAddress')?.value || '';
+        const pincode = document.getElementById('pincodeInput')?.value || '';
+        const paymentMethod = document.querySelector('input[name="paymentMethod"]:checked')?.value || 'cod';
+
+        if (!name || !phone || !address || !pincode) {
+            showNotification('Please fill all required fields! ⚠️', 'error');
+            return;
         }
 
-        function togglePassword(id) {
-            const input = document.getElementById(id);
-            if (input) {
-                input.type = input.type === 'password' ? 'text' : 'password';
-            }
+        if (!currentUser) {
+            showNotification('Please login to place order! 🔐', 'error');
+            openAuthModal();
+            return;
         }
 
-        function setupScrollReveal() {
-            const observer = new IntersectionObserver((entries) => {
-                entries.forEach(entry => {
-                    if (entry.isIntersecting) {
-                        entry.target.classList.add('visible');
-                    }
-                });
-            }, { threshold: 0.1 });
-
-            document.querySelectorAll('.scroll-reveal').forEach(el => observer.observe(el));
-        }
-
-        function initializeEventListeners() {
-            // Instruction tabs
-            document.querySelectorAll('.instruction-tab').forEach(tab => {
-                tab.addEventListener('click', function() {
-                    const category = this.getAttribute('data-category');
-                    document.querySelectorAll('.instruction-tab').forEach(t => t.classList.remove('active'));
-                    document.querySelectorAll('.instruction-content').forEach(c => c.classList.remove('active'));
-                    this.classList.add('active');
-                    const element = document.getElementById(category);
-                    if (element) element.classList.add('active');
-                });
+        let subtotal = 0;
+        const items = [];
+        cart.forEach((item) => {
+            subtotal += item.price * item.qty;
+            items.push({ 
+                productId: item.id,
+                name: item.name, 
+                qty: item.qty, 
+                price: item.price 
             });
+        });
 
-            // Legal tabs
-            document.querySelectorAll('.legal-tab').forEach(tab => {
-                tab.addEventListener('click', function() {
-                    const category = this.getAttribute('data-category');
-                    document.querySelectorAll('.legal-tab').forEach(t => t.classList.remove('active'));
-                    document.querySelectorAll('.legal-content').forEach(c => c.classList.remove('active'));
-                    this.classList.add('active');
-                    const element = document.getElementById(category);
-                    if (element) element.classList.add('active');
-                });
-            });
-
-            // FAQ items
-            document.querySelectorAll('.faq-item').forEach(item => {
-                const question = item.querySelector('.faq-question');
-                if (question) {
-                    question.addEventListener('click', () => {
-                        const isActive = item.classList.contains('active');
-                        document.querySelectorAll('.faq-item').forEach(faq => faq.classList.remove('active'));
-                        if (!isActive) item.classList.add('active');
-                    });
-                }
-            });
-
-            // Wishlist buttons
-            document.addEventListener('click', (e) => {
-                if (e.target.classList.contains('wishlist-btn')) {
-                    e.target.textContent = e.target.textContent === '♡' ? '❤️' : '♡';
-                    if (e.target.textContent === '❤️') {
-                        showNotification('Added to wishlist! ❤️', 'success');
-                    }
-                }
-            });
-
-            // Header scroll
-            window.addEventListener('scroll', () => {
-                const header = document.getElementById('header');
-                if (window.scrollY > 50) {
-                    header.classList.add('scrolled');
-                } else {
-                    header.classList.remove('scrolled');
-                }
-            });
-
-            // Close on escape
-            document.addEventListener('keydown', (e) => {
-                if (e.key === 'Escape') {
-                    closeCart();
-                    closeAuthModal();
-                    closeDashboard();
-                }
-            });
-
-            // Modal close on background click
-            document.getElementById('authModal').addEventListener('click', (e) => {
-                if (e.target.id === 'authModal') {
-                    closeAuthModal();
-                }
-            });
+        let total = subtotal;
+        const voucherCode = voucherApplied ? (document.getElementById('voucherCode')?.value || '') : null;
+        
+        if (voucherApplied) {
+            total -= Math.round(subtotal * 0.2);
         }
 
-        // ===== AUTH FUNCTIONS =====
-        function openAuthModal() {
-            document.getElementById('authModal').classList.add('active');
-        }
-
-        function closeAuthModal() {
-            document.getElementById('authModal').classList.remove('active');
-        }
-
-        function switchAuthTab(tab) {
-            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
-            document.querySelectorAll('.panel').forEach(panel => panel.classList.remove('active'));
-
-            document.querySelector(`.tab-btn:nth-child(${tab === 'login' ? 1 : 2})`).classList.add('active');
-            document.getElementById(tab + 'Panel').classList.add('active');
-        }
-
-        async function handleLogin(e) {
-            e.preventDefault();
-            const email = document.getElementById('loginEmail').value;
-            const password = document.getElementById('loginPass').value;
+        if (paymentMethod === 'cod') {
+            const orderData = {
+                items,
+                deliveryAddress: `${name}, ${phone}, ${address}`,
+                pincode,
+                promocode: voucherCode,
+                totalAmount: total,
+                deliveryCharge: 0,
+                paymentMethod
+            };
 
             try {
-                const data = await apiCall('/auth/login', {
+                const data = await apiCall('/orders', {
                     method: 'POST',
-                    body: JSON.stringify({ email, password })
+                    body: JSON.stringify(orderData)
                 });
 
-                localStorage.setItem('authToken', data.token);
-                currentUser = data.user;
+                cart.clear();
+                voucherApplied = false;
                 saveState();
-                updateUserUI();
-                closeAuthModal();
-                showNotification(`Welcome back, ${data.user.name}! 👋`, 'success');
-            } catch (error) {
-                const user = users.get(email);
-                if (user && user.password === password) {
-                    currentUser = { name: user.name, email: user.email, isAdmin: user.isAdmin };
-                    saveState();
-                    updateUserUI();
-                    closeAuthModal();
-                    showNotification(`Welcome back, ${user.name}! 👋`, 'success');
-                } else {
-                    showNotification('Invalid credentials. Try admin@snazo.com / admin123', 'error');
-                }
-            }
-        }
-
-        async function handleSignup(e) {
-            e.preventDefault();
-            const name = document.getElementById('signupName').value;
-            const email = document.getElementById('signupEmail').value;
-            const password = document.getElementById('signupPass').value;
-
-            try {
-                const data = await apiCall('/auth/register', {
-                    method: 'POST',
-                    body: JSON.stringify({ name, email, password })
-                });
-
-                localStorage.setItem('authToken', data.token);
-                currentUser = data.user;
-                saveState();
-                updateUserUI();
-                closeAuthModal();
-                showNotification('Account created successfully! 🎉', 'success');
-            } catch (error) {
-                if (users.has(email)) {
-                    showNotification('Account with this email already exists! ⚠️', 'error');
-                    return;
-                }
-
-                const newUser = { name, email, password, isAdmin: false };
-                users.set(email, newUser);
-                currentUser = { name: newUser.name, email: newUser.email, isAdmin: newUser.isAdmin };
-                saveState();
-                updateUserUI();
-                closeAuthModal();
-                showNotification('Account created successfully! 🎉', 'success');
-            }
-        }
-
-        function logout() {
-            currentUser = null;
-            localStorage.removeItem('authToken');
-            saveState();
-            updateUserUI();
-            closeDashboard();
-            closeCart();
-            showNotification('Logged out successfully! 👋', 'success');
-        }
-
-        function updateUserUI() {
-            const userInfo = document.getElementById('userInfo');
-            const loginBtn = document.getElementById('loginBtn');
-
-            if (currentUser) {
-                const initial = currentUser.name ? currentUser.name.charAt(0).toUpperCase() : 'U';
-                document.getElementById('userAvatar').textContent = initial;
-                document.getElementById('userName').textContent = currentUser.name || 'User';
-                userInfo.classList.add('active');
-                loginBtn.style.display = 'none';
-            } else {
-                userInfo.classList.remove('active');
-                loginBtn.style.display = 'block';
-            }
-            updateCart();
-        }
-
-        // ===== CART FUNCTIONS =====
-        function openCart() {
-            document.getElementById('cartSidebar').classList.add('active');
-            document.getElementById('cartView').style.display = 'flex';
-            document.getElementById('checkoutForm').classList.remove('active');
-        }
-
-        function closeCart() {
-            document.getElementById('cartSidebar').classList.remove('active');
-        }
-
-        function addToCart(id) {
-            const product = products[id];
-            const key = String(id);
-            
-            if (cart.has(key)) {
-                cart.get(key).qty++;
-            } else {
-                cart.set(key, { ...product, qty: 1, id: key });
-            }
-            
-            updateCart();
-            showNotification(`${product.name} added! 🎉`, 'success');
-            saveState();
-        }
-
-        function updateQuantity(id, change) {
-            const key = String(id);
-            if (cart.has(key)) {
-                const item = cart.get(key);
-                item.qty += change;
-                if (item.qty <= 0) {
-                    const name = item.name;
-                    cart.delete(key);
-                    showNotification(`${name} removed from cart.`, 'error');
-                } else {
-                    cart.set(key, item);
-                }
-            }
-            updateCart();
-            saveState();
-        }
-
-        function removeFromCart(id) {
-            const key = String(id);
-            if (cart.has(key)) {
-                const name = cart.get(key).name;
-                cart.delete(key);
                 updateCart();
-                showNotification(`${name} removed from cart.`, 'error');
-                saveState();
-            }
-        }
-
-        function updateCart() {
-            const count = Array.from(cart.values()).reduce((sum, item) => sum + item.qty, 0);
-            document.getElementById('cartCount').textContent = count;
-            renderCart();
-        }
-
-        function renderCart() {
-            const wrapper = document.getElementById('cartItems');
-            const footer = document.getElementById('cartFooter');
-            let subtotal = 0;
-
-            if (cart.size === 0) {
-                wrapper.innerHTML = `
-                    <div style="text-align: center; padding: 4rem 2rem; color: rgba(255,255,255,0.5); width: 100%;">
-                        <div style="font-size: 4rem; margin-bottom: 1.5rem;">🧺</div>
-                        <h3 style="margin-bottom: 0.75rem; color: white;">Your cart is empty</h3>
-                        <p>Add delicious items to get started!</p>
-                        <button class="btn btn-primary" style="margin-top: 2rem; width: auto;" onclick="showSection('products'); closeCart();">
-                            <span>Browse Menu</span>
-                        </button>
-                    </div>
-                `;
-                footer.style.display = 'none';
-                return;
-            }
-
-            let html = '';
-            cart.forEach((item) => {
-                const itemTotal = item.price * item.qty;
-                subtotal += itemTotal;
-                html += `
-                    <div class="cart-item">
-                        <img src="${item.image}" alt="${item.name}" class="cart-item-img">
-                        <div class="cart-item-info">
-                            <h4>${item.name}</h4>
-                            <p>₹${item.price} x ${item.qty}</p>
-                            <div class="cart-item-controls">
-                                <div class="quantity-controls">
-                                    <button type="button" class="quantity-btn" onclick="updateQuantity('${item.id}', -1)">-</button>
-                                    <span class="item-qty">${item.qty}</span>
-                                    <button type="button" class="quantity-btn" onclick="updateQuantity('${item.id}', 1)">+</button>
-                                </div>
-                                <button type="button" class="remove-btn" onclick="removeFromCart('${item.id}')">Remove</button>
-                            </div>
-                        </div>
-                    </div>
-                `;
-            });
-
-            wrapper.innerHTML = html;
-            footer.style.display = 'block';
-            document.getElementById('cartSubtotal').textContent = `₹${subtotal}`;
-            document.getElementById('cartTotal').textContent = `₹${subtotal}`;
-        }
-
-        // ===== CHECKOUT FUNCTIONS =====
-        function toggleCheckout() {
-            if (cart.size === 0) {
-                showNotification('Your cart is empty! Add items first.', 'error');
-                return;
-            }
-
-            if (!currentUser) {
-                showNotification('Please login to checkout 🔐', 'error');
-                openAuthModal();
-                return;
-            }
-                        
-            const cartView = document.getElementById('cartView');
-            const checkoutForm = document.getElementById('checkoutForm');
-
-            if (currentUser.name) document.getElementById('deliveryName').value = currentUser.name;
-
-            if (checkoutForm.classList.contains('active')) {
-                cartView.style.display = 'flex';
-                checkoutForm.classList.remove('active');
-            } else {
-                cartView.style.display = 'none';
-                checkoutForm.classList.add('active');
-                updateCheckoutSummary();
-            }
-        }
-
-        function updateCheckoutSummary() {
-            let subtotal = 0;
-            let itemsHtml = '';
-            
-            cart.forEach((item) => {
-                subtotal += item.price * item.qty;
-                itemsHtml += `
-                    <div class="checkout-item">
-                        <span>${item.name} x ${item.qty}</span>
-                        <span>₹${item.price * item.qty}</span>
-                    </div>
-                `;
-            });
-
-            const checkoutItemsList = document.getElementById('checkoutItemsList');
-            if (checkoutItemsList) checkoutItemsList.innerHTML = itemsHtml;
-            
-            const checkoutSubtotal = document.getElementById('checkoutSubtotal');
-            if (checkoutSubtotal) checkoutSubtotal.textContent = `₹${subtotal}`;
-            
-            let total = subtotal;
-            if (voucherApplied) {
-                const discount = Math.round(subtotal * 0.2);
-                const discountRow = document.getElementById('discountRow');
-                const discountAmount = document.getElementById('discountAmount');
-                if (discountRow) discountRow.style.display = 'flex';
-                if (discountAmount) discountAmount.textContent = `-₹${discount}`;
-                total -= discount;
-            } else {
-                const discountRow = document.getElementById('discountRow');
-                if (discountRow) discountRow.style.display = 'none';
-            }
-            
-            const checkoutTotal = document.getElementById('checkoutTotal');
-            if (checkoutTotal) checkoutTotal.textContent = `₹${total}`;
-        }
-
-        function applyVoucher() {
-            const voucherInput = document.getElementById('voucherCode');
-            const voucher = voucherInput ? voucherInput.value.toUpperCase() : '';
-            
-            if (voucher === 'SNZO20') {
-                voucherApplied = true;
-                updateCheckoutSummary();
-                showNotification('Voucher applied! 20% discount 🎉', 'success');
-            } else if (voucher === '') {
-                showNotification('Please enter a voucher code', 'error');
-            } else {
-                showNotification('Invalid voucher code ❌', 'error');
-            }
-        }
-
-        function checkPincodeAvailability() {
-            const pincodeInput = document.getElementById('pincodeInput');
-            const statusEl = document.getElementById('pincodeStatus');
-            const pincode = pincodeInput ? pincodeInput.value.trim() : '';
-
-            if (!pincode || pincode.length !== 6 || !/^\d+$/.test(pincode)) {
-                if (statusEl) statusEl.innerHTML = '<span style="color: #FF6B35;">⚠️ Please enter a valid 6-digit pincode</span>';
-                return;
-            }
-
-            const serviceablePincodes = [
-                '682001', '682002', '682003', '682004', '682005',
-                '682016', '682017', '682018', '682019', '682020',
-                '673001', '673002', '673003', '673004', '673005'
-            ];
-
-            if (serviceablePincodes.includes(pincode)) {
-                if (statusEl) statusEl.innerHTML = '<span style="color: var(--success);">✅ Delivery available!</span>';
-            } else {
-                if (statusEl) statusEl.innerHTML = '<span style="color: #FF3B3F;">❌ Delivery not available at this pincode</span>';
-            }
-        }
-
-        async function proceedToPayment() {
-            const name = document.getElementById('deliveryName')?.value || '';
-            const phone = document.getElementById('deliveryPhone')?.value || '';
-            const address = document.getElementById('deliveryAddress')?.value || '';
-            const pincode = document.getElementById('pincodeInput')?.value || '';
-            const paymentMethod = document.querySelector('input[name="paymentMethod"]:checked')?.value || 'cod';
-
-            if (!name || !phone || !address || !pincode) {
-                showNotification('Please fill all required fields! ⚠️', 'error');
-                return;
-            }
-
-            if (!currentUser) {
-                showNotification('Please login to place order! 🔐', 'error');
-                openAuthModal();
-                return;
-            }
-
-            let subtotal = 0;
-            const items = [];
-            cart.forEach((item) => {
-                subtotal += item.price * item.qty;
-                items.push({ 
-                    productId: item.id,
-                    name: item.name, 
-                    qty: item.qty, 
-                    price: item.price 
-                });
-            });
-
-            let total = subtotal;
-            const voucherCode = voucherApplied ? (document.getElementById('voucherCode')?.value || '') : null;
-            
-            if (voucherApplied) {
-                total -= Math.round(subtotal * 0.2);
-            }
-
-            if (paymentMethod === 'cod') {
-                const orderData = {
-                    items,
-                    deliveryAddress: `${name}, ${phone}, ${address}`,
-                    pincode,
-                    promocode: voucherCode,
-                    totalAmount: total,
-                    deliveryCharge: 0,
-                    paymentMethod
+                toggleCheckout();
+                closeCart();
+                showNotification(`Order placed successfully! Total: ₹${total}`, 'success', 5000);
+                // Optionally, re-fetch orders for the dashboard
+                // await loadOrders(); 
+            } catch (error) {
+                // Fallback for local order storage if backend fails
+                const order = {
+                    id: orders.length + 1001,
+                    customerName: name,
+                    userEmail: currentUser.email,
+                    items: items,
+                    address: address,
+                    phone: phone,
+                    total: total,
+                    status: 'pending',
+                    date: new Date().toLocaleDateString('en-US')
                 };
 
-                try {
-                    const data = await apiCall('/orders', {
-                        method: 'POST',
-                        body: JSON.stringify(orderData)
-                    });
-
-                    cart.clear();
-                    voucherApplied = false;
-                    saveState();
-                    updateCart();
-                    toggleCheckout();
-                    closeCart();
-                    showNotification(`Order placed successfully! Total: ₹${total}`, 'success', 5000);
-                } catch (error) {
-                    const order = {
-                        id: orders.length + 1001,
-                        customerName: name,
-                        userEmail: currentUser.email,
-                        items: items,
-                        address: address,
-                        phone: phone,
-                        total: total,
-                        status: 'pending',
-                        date: new Date().toLocaleDateString('en-US')
+                orders.push(order);
+                cart.clear();
+                voucherApplied = false;
+                saveState();
+                updateCart();
+                toggleCheckout();
+                closeCart();
+                showNotification(`Order #${order.id} placed successfully! Total: ₹${order.total}`, 'success', 5000);
+            }
+        } else if (paymentMethod === 'online') {
+            const options = {
+                key: "rzp_test_1234567890", // Replace with your actual Razorpay Key ID
+                amount: total * 100,
+                currency: "INR",
+                name: "Snazo Foods",
+                description: "Premium Frozen Order",
+                handler: async function (response) {
+                    const orderData = {
+                        items,
+                        deliveryAddress: `${name}, ${phone}, ${address}`,
+                        pincode,
+                        promocode: voucherCode,
+                        totalAmount: total,
+                        deliveryCharge: 0,
+                        paymentMethod: 'online',
+                        paymentId: response.razorpay_payment_id
                     };
 
-                    orders.push(order);
+                    try {
+                        await apiCall('/orders', {
+                            method: 'POST',
+                            body: JSON.stringify(orderData)
+                        });
+                        // await loadOrders(); // Optionally, re-fetch orders for the dashboard
+                    } catch (error) {
+                        console.warn('Order creation via API failed after successful payment. Storing locally.', error);
+                        const order = { // Fallback local storage
+                            id: orders.length + 1001,
+                            customerName: name,
+                            userEmail: currentUser.email,
+                            items: items,
+                            address: address,
+                            phone: phone,
+                            total: total,
+                            status: 'paid', // Mark as paid since payment succeeded
+                            date: new Date().toLocaleDateString('en-US'),
+                            paymentId: response.razorpay_payment_id
+                        };
+                        orders.push(order);
+                    }
+
                     cart.clear();
                     voucherApplied = false;
                     saveState();
                     updateCart();
                     toggleCheckout();
                     closeCart();
-                    showNotification(`Order #${order.id} placed successfully! Total: ₹${order.total}`, 'success', 5000);
-                }
-            } else if (paymentMethod === 'online') {
-                const options = {
-                    key: "rzp_test_1234567890",
-                    amount: total * 100,
-                    currency: "INR",
-                    name: "Snazo Foods",
-                    description: "Premium Frozen Order",
-                    handler: async function (response) {
-                        const orderData = {
-                            items,
-                            deliveryAddress: `${name}, ${phone}, ${address}`,
-                            pincode,
-                            promocode: voucherCode,
-                            totalAmount: total,
-                            deliveryCharge: 0,
-                            paymentMethod: 'online',
-                            paymentId: response.razorpay_payment_id
-                        };
-
-                        try {
-                            await apiCall('/orders', {
-                                method: 'POST',
-                                body: JSON.stringify(orderData)
-                            });
-                        } catch (error) {
-                            console.warn('Order creation via API failed');
-                        }
-
-                        cart.clear();
-                        voucherApplied = false;
-                        saveState();
-                        updateCart();
-                        toggleCheckout();
-                        closeCart();
-                        showNotification(`Payment successful! Order placed.`, 'success', 5000);
-                    },
-                    prefill: {
-                        name: name,
-                        email: currentUser.email,
-                        contact: phone
-                    },
-                    theme: {
-                        color: "#FF6B35"
-                    },
-                    modal: {
-                        ondismiss: function() {
-                            showNotification('Payment cancelled', 'error');
-                        }
+                    showNotification(`Payment successful! Order placed.`, 'success', 5000);
+                },
+                prefill: {
+                    name: name,
+                    email: currentUser.email,
+                    contact: phone
+                },
+                theme: {
+                    color: "#FF6B35"
+                },
+                modal: {
+                    ondismiss: function() {
+                        showNotification('Payment cancelled', 'error');
                     }
-                };
-
-                try {
-                    const rzp = new Razorpay(options);
-                    rzp.open();
-                } catch (error) {
-                    showNotification('Payment gateway error', 'error');
                 }
+            };
+
+            try {
+                const rzp = new Razorpay(options);
+                rzp.open();
+            } catch (error) {
+                showNotification('Payment gateway error: ' + error.message, 'error');
             }
         }
+    }
 
-        // ===== DASHBOARD FUNCTIONS =====
-        function openDashboard() {
-            if (!currentUser) {
-                openAuthModal();
-                return;
-            }
-            const dashboardPanel = document.getElementById('dashboardPanel');
-            const dashboardTitle = document.getElementById('dashboardTitle');
-            dashboardPanel.classList.add('active');
-
-            if (currentUser.isAdmin) {
-                dashboardTitle.textContent = '👨‍💼 Admin Dashboard';
-                renderAdminDashboard();
-            } else {
-                dashboardTitle.textContent = '👤 My Orders';
-                renderUserDashboard();
-            }
+    // ===== DASHBOARD FUNCTIONS =====
+    function openDashboard() {
+        if (!currentUser) {
+            openAuthModal();
+            return;
         }
+        const dashboardPanel = document.getElementById('dashboardPanel');
+        const dashboardTitle = document.getElementById('dashboardTitle');
+        dashboardPanel.classList.add('active');
 
-        function closeDashboard() {
-            document.getElementById('dashboardPanel').classList.remove('active');
+        if (currentUser.isAdmin) {
+            dashboardTitle.textContent = '👨‍💼 Admin Dashboard';
+            renderAdminDashboard();
+        } else {
+            dashboardTitle.textContent = '👤 My Orders';
+            renderUserDashboard();
         }
+    }
 
-        function renderUserDashboard() {
-            const dashboardContent = document.getElementById('dashboardContent');
-            const userOrders = orders.filter(o => o.userEmail === currentUser.email).reverse();
-            let html = '';
+    function closeDashboard() {
+        document.getElementById('dashboardPanel').classList.remove('active');
+    }
 
-            if (userOrders.length === 0) {
-                html = `
-                    <div style="text-align: center; padding: 4rem 2rem; color: rgba(255,255,255,0.5);">
-                        <div style="font-size: 4rem; margin-bottom: 1.5rem;">📦</div>
-                        <h3 style="margin-bottom: 0.75rem; color: white;">No orders yet</h3>
-                        <p>Start ordering delicious items!</p>
-                        <button class="btn btn-primary" style="margin-top: 2rem; width: auto;" onclick="showSection('products'); closeDashboard();">
-                            <span>Browse Products</span>
-                        </button>
-                    </div>
-                `;
-            } else {
-                html = '<h3 style="font-size: 1.5rem; margin-bottom: 1.5rem;">Track Your Orders</h3>';
-                userOrders.forEach(order => {
-                    html += `
-                        <div class="order-card">
-                            <div class="order-header">
-                                <div class="order-id">Order #${order.id}</div>
-                                <div class="order-status status-${order.status}">${order.status.toUpperCase()}</div>
-                            </div>
-                            <div class="order-items">
-                                <strong>Items:</strong> ${order.items.map(i => `${i.name} (x${i.qty})`).join(', ')}
-                            </div>
-                            <div style="margin: 0.5rem 0; color: rgba(255,255,255,0.7);">
-                                <strong>Address:</strong> ${order.address}
-                            </div>
-                            <div class="order-total">
-                                Total: ₹${order.total}
-                            </div>
-                        </div>
-                    `;
-                });
+    // Function to load orders from backend (if applicable)
+    async function loadOrders() {
+        try {
+            // Assuming backend has a '/orders' endpoint for all orders (admin)
+            // Or '/user/orders' for user-specific orders
+            const data = await apiCall('/orders'); // Adjust endpoint if needed
+            if (data.orders && Array.isArray(data.orders)) {
+                orders = data.orders; // Replace local orders with backend orders
+                console.log('✅ Orders loaded from backend');
             }
-            
-            html += `<button class="logout-btn" onclick="logout()">🚪 Logout</button>`;
-            if (dashboardContent) dashboardContent.innerHTML = html;
+        } catch (error) {
+            console.warn('⚠️ Failed to load orders from backend, using local data:', error.message);
+            // Continue using local 'orders' array if backend fails
         }
+        saveState(); // Save updated orders to local storage
+    }
 
-        function renderAdminDashboard() {
-            const dashboardContent = document.getElementById('dashboardContent');
-            const allOrders = orders.slice().reverse();
-            let html = '<h3 style="font-size: 1.5rem; margin-bottom: 1.5rem;">Manage All Orders</h3>';
-            
-            if (allOrders.length === 0) {
+    async function renderUserDashboard() { // Made async to potentially load orders
+        await loadOrders(); // Load latest orders before rendering
+        const dashboardContent = document.getElementById('dashboardContent');
+        const userOrders = orders.filter(o => o.userEmail === currentUser.email).reverse();
+        let html = '';
+
+        if (userOrders.length === 0) {
+            html = `
+                <div style="text-align: center; padding: 4rem 2rem; color: rgba(255,255,255,0.5);">
+                    <div style="font-size: 4rem; margin-bottom: 1.5rem;">📦</div>
+                    <h3 style="margin-bottom: 0.75rem; color: white;">No orders yet</h3>
+                    <p>Start ordering delicious items!</p>
+                    <button class="btn btn-primary" style="margin-top: 2rem; width: auto;" onclick="showSection('products'); closeDashboard();">
+                        <span>Browse Products</span>
+                    </button>
+                </div>
+            `;
+        } else {
+            html = '<h3 style="font-size: 1.5rem; margin-bottom: 1.5rem;">Track Your Orders</h3>';
+            userOrders.forEach(order => {
                 html += `
-                    <div style="text-align: center; padding: 4rem 2rem; color: rgba(255,255,255,0.5);">
-                        <div style="font-size: 4rem; margin-bottom: 1.5rem;">📦</div>
-                        <h3 style="margin-bottom: 0.75rem; color: white;">No orders received yet.</h3>
+                    <div class="order-card">
+                        <div class="order-header">
+                            <div class="order-id">Order #${order.id}</div>
+                            <div class="order-status status-${order.status}">${order.status.toUpperCase()}</div>
+                        </div>
+                        <div class="order-items">
+                            <strong>Items:</strong> ${order.items.map(i => `${i.name} (x${i.qty})`).join(', ')}
+                        </div>
+                        <div style="margin: 0.5rem 0; color: rgba(255,255,255,0.7);">
+                            <strong>Address:</strong> ${order.address}
+                        </div>
+                        <div class="order-total">
+                            Total: ₹${order.total}
+                        </div>
                     </div>
                 `;
-            } else {
-                allOrders.forEach(order => {
-                    html += `
-                        <div class="order-card">
-                            <div class="order-header">
-                                <div class="order-id">Order #${order.id}</div>
-                                <div class="order-status status-${order.status}">${order.status.toUpperCase()}</div>
-                            </div>
-                            <div style="margin-bottom: 0.5rem; color: var(--accent);"><strong>Customer:</strong> ${order.customerName} (${order.userEmail})</div>
-                            <div class="order-items">
-                                <strong>Items:</strong> ${order.items.map(i => `${i.name} (x${i.qty})`).join(', ')}
-                            </div>
-                            <div style="margin: 0.5rem 0; color: rgba(255,255,255,0.7);">
-                                <strong>Address:</strong> ${order.address}
-                            </div>
-                            <div class="order-total">
-                                Total: ₹${order.total}
+            });
+        }
+        
+        html += `<button class="logout-btn" onclick="logout()">🚪 Logout</button>`;
+        if (dashboardContent) dashboardContent.innerHTML = html;
+    }
+
+    async function renderAdminDashboard() { // Made async to load products/orders
+        await loadProducts(); // Ensure latest products are loaded
+        await loadOrders(); // Ensure latest orders are loaded
+        const dashboardContent = document.getElementById('dashboardContent');
+        
+        let html = `
+            <h3 style="font-size: 1.5rem; margin-bottom: 1.5rem;">🛠️ Admin Dashboard</h3>
+            
+            <!-- Add Product Form -->
+            <div class="form-section" style="margin-bottom: 2rem;">
+                <div class="form-header">
+                    <h2>➕ Add New Product</h2>
+                    <p>Fill all fields to create a new item</p>
+                </div>
+                <form id="addProductForm" onsubmit="handleAddProduct(event)">
+                    <div class="form-group">
+                        <label class="form-label">Name</label>
+                        <input type="text" class="form-input" id="productName" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Description</label>
+                        <input type="text" class="form-input" id="productDesc" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Price (₹)</label>
+                        <input type="number" class="form-input" id="productPrice" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Original Price (Optional)</label>
+                        <input type="number" class="form-input" id="productOriginalPrice">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Image URL</label>
+                        <input type="url" class="form-input" id="productImage" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Discount?</label>
+                        <select class="form-input" id="productDiscount">
+                            <option value="false">No</option>
+                            <option value="true">Yes</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Popular?</label>
+                        <select class="form-input" id="productPopular">
+                            <option value="false">No</option>
+                            <option value="true">Yes</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="btn btn-primary">➕ Add Product</button>
+                </form>
+            </div>
+
+            <!-- Product List -->
+            <div class="form-section" style="margin-bottom: 2rem;">
+                <h3 style="margin-bottom: 1rem;">📦 Manage Products</h3>
+        `;
+
+        // Loop through all products (now from backend)
+        Object.values(products).forEach(p => {
+            html += `
+                <div class="order-card" style="margin-bottom: 1rem; background: rgba(255,255,255,0.08);">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+                        <strong>${p.name}</strong>
+                        <div>
+                            <button class="btn btn-outline" style="padding: 0.4rem 0.8rem; margin-right: 0.5rem;" onclick="handleEditProduct('${p.id}')">✏️</button>
+                            <button class="btn" style="background: #E85A2C; padding: 0.4rem 0.8rem;" onclick="handleDeleteProduct('${p.id}')">🗑️</button>
+                        </div>
+                    </div>
+                    <p style="color: rgba(255,255,255,0.7); font-size: 0.9rem; margin-bottom: 0.5rem;">₹${p.price} ${p.originalPrice ? `<span style="color: #FFB399; text-decoration: line-through;">₹${p.originalPrice}</span>` : ''}</p>
+                    <img src="${p.image}" alt="${p.name}" style="width: 80px; height: 80px; object-fit: cover; border-radius: 10px;">
+                </div>
+            `;
+        });
+
+        html += `
+            </div>
+
+            <!-- Order List (for Admin) -->
+            <div class="form-section">
+                <h3 style="margin-bottom: 1rem;">📋 Manage Orders</h3>
+        `;
+        const allOrders = orders.slice().reverse(); // Show latest orders first
+        if (allOrders.length === 0) {
+            html += `
+                <div style="text-align: center; padding: 2rem; color: rgba(255,255,255,0.5);">
+                    <div style="font-size: 3rem; margin-bottom: 1rem;">📦</div>
+                    <p>No orders received yet.</p>
+                </div>
+            `;
+        } else {
+            allOrders.forEach(order => {
+                html += `
+                    <div class="order-card">
+                        <div class="order-header">
+                            <div class="order-id">Order #${order.id}</div>
+                            <div>
+                                <select class="form-input" style="width: auto; display: inline-block; margin-right: 0.5rem;" onchange="updateOrderStatus('${order.id}', this.value)">
+                                    <option value="pending" ${order.status === 'pending' ? 'selected' : ''}>Pending</option>
+                                    <option value="processing" ${order.status === 'processing' ? 'selected' : ''}>Processing</option>
+                                    <option value="delivered" ${order.status === 'delivered' ? 'selected' : ''}>Delivered</option>
+                                    <option value="cancelled" ${order.status === 'cancelled' ? 'selected' : ''}>Cancelled</option>
+                                </select>
+                                <button class="btn" style="background: #E85A2C; padding: 0.4rem 0.8rem;" onclick="handleDeleteOrder('${order.id}')">🗑️</button>
                             </div>
                         </div>
-                    `;
-                });
-            }
-            
-            html += `<button class="logout-btn" onclick="logout()">🚪 Logout</button>`;
-            if (dashboardContent) dashboardContent.innerHTML = html;
+                        <div style="margin-bottom: 0.5rem; color: var(--accent);"><strong>Customer:</strong> ${order.customerName || order.userEmail} (${order.userEmail})</div>
+                        <div class="order-items">
+                            <strong>Items:</strong> ${order.items.map(i => `${i.name} (x${i.qty})`).join(', ')}
+                        </div>
+                        <div style="margin: 0.5rem 0; color: rgba(255,255,255,0.7);">
+                            <strong>Address:</strong> ${order.address}
+                        </div>
+                        <div class="order-total">
+                            Total: ₹${order.total}
+                        </div>
+                    </div>
+                `;
+            });
         }
-
-        // ===== OTHER FUNCTIONS =====
-        function handlePartner(event) {
-            event.preventDefault();
-            showNotification('Thank you! We will contact you soon. 🤝', 'success');
-            event.target.reset();
+        html += `
+            </div>
+            <button class="logout-btn" onclick="logout()">🚪 Logout</button>
+        `;
+        
+        if (dashboardContent) {
+            dashboardContent.innerHTML = html;
         }
+    }
 
-        console.log('🚀 Snazo initialized successfully');
-    </script>
+    // ===== ADMIN CRUD FUNCTIONS =====
+    async function handleAddProduct(e) {
+        e.preventDefault();
+
+        const newProductData = {
+            name: document.getElementById('productName').value,
+            description: document.getElementById('productDesc').value, // Matches backend 'description'
+            price: parseFloat(document.getElementById('productPrice').value),
+            originalPrice: document.getElementById('productOriginalPrice').value ? parseFloat(document.getElementById('productOriginalPrice').value) : undefined,
+            image: document.getElementById('productImage').value,
+            discount: document.getElementById('productDiscount').value === 'true',
+            popular: document.getElementById('productPopular').value === 'true'
+        };
+
+        try {
+            const data = await apiCall('/products', { // Assuming POST /api/products creates a new product
+                method: 'POST',
+                body: JSON.stringify(newProductData)
+            });
+
+            // After successful creation, re-load all products to sync
+            await loadProducts(); 
+            document.getElementById('addProductForm').reset();
+            showNotification(`✅ Product "${data.name || newProductData.name}" added!`, 'success');
+            openDashboard(); // Re-render dashboard to show updated list
+        } catch (error) {
+            showNotification('❌ Failed to add product: ' + error.message, 'error');
+        }
+    }
+
+    async function handleDeleteProduct(id) {
+        if (!confirm("Are you sure you want to delete this product? This cannot be undone.")) return;
+
+        try {
+            await apiCall(`/products/${id}`, { method: 'DELETE' }); // Assuming DELETE /api/products/:id
+            await loadProducts(); // Re-load products to sync
+            showNotification('🗑️ Product deleted', 'success');
+            openDashboard(); // Re-render dashboard
+        } catch (error) {
+            showNotification('❌ Failed to delete product: ' + error.message, 'error');
+        }
+    }
+
+    function handleEditProduct(id) {
+        const productToEdit = products[id];
+        if (!productToEdit) {
+            showNotification('Product not found for editing!', 'error');
+            return;
+        }
+        // For a full edit, you would typically pre-fill a form or open a modal.
+        // For now, let's just show an alert.
+        alert(`Editing Product: ${productToEdit.name}\n\n(Implement a proper edit form here to send PUT/PATCH to /products/${id})`);
+
+        // Example: If you had an edit modal, you'd populate its fields and show it.
+        // For a quick implementation, you might even reuse the add product form and change its submit behavior.
+    }
+
+    async function updateOrderStatus(orderId, newStatus) {
+        try {
+            // Assuming backend has a PUT/PATCH /orders/:id endpoint to update status
+            await apiCall(`/orders/${orderId}`, {
+                method: 'PUT', // or 'PATCH'
+                body: JSON.stringify({ status: newStatus })
+            });
+            await loadOrders(); // Reload orders to update dashboard
+            showNotification(`Order #${orderId} status updated to ${newStatus.toUpperCase()}`, 'success');
+            openDashboard(); // Re-render dashboard
+        } catch (error) {
+            showNotification(`❌ Failed to update order status: ${error.message}`, 'error');
+        }
+    }
+
+    async function handleDeleteOrder(orderId) {
+        if (!confirm("Are you sure you want to delete this order? This cannot be undone.")) return;
+
+        try {
+            // Assuming backend has a DELETE /orders/:id endpoint
+            await apiCall(`/orders/${orderId}`, { method: 'DELETE' });
+            await loadOrders(); // Reload orders to update dashboard
+            showNotification(`🗑️ Order #${orderId} deleted`, 'success');
+            openDashboard(); // Re-render dashboard
+        } catch (error) {
+            showNotification(`❌ Failed to delete order: ${error.message}`, 'error');
+        }
+    }
+
+    // ===== OTHER FUNCTIONS =====
+    function handlePartner(event) {
+        event.preventDefault();
+        showNotification('Thank you! We will contact you soon. 🤝', 'success');
+        event.target.reset();
+    }
+
+    console.log('🚀 Snazo initialized successfully');
+</script>
 </body>
 </html>
